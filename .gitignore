@@ -1,0 +1,15 @@
+node_modules/
+.next/
+.env*
+!.env.example
+.postgres/
+*.log
+*.tsbuildinfo
+.local-accounts.json
+
+__pycache__/
+*.pyc
+.DS_Store
+.installed-lock
+*.dump
+backups/

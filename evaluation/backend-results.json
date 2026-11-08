@@ -1,0 +1,29 @@
+{
+  "passed": 23,
+  "checks": [
+    "relational repository preserves imported progress",
+    "invalid valid-reading/null combination rejected by Postgres",
+    "agent enqueue is asynchronous and durable",
+    "active incident job is deduplicated across command keys",
+    "lease recovery rejects a stale worker owner",
+    "tool progress and proposal persisted in separate tables",
+    "technician cannot approve a proposal",
+    "approved work order survives a repository reload",
+    "receipt replay does not execute the mutation again",
+    "same key with a changed payload is rejected",
+    "database uniqueness rejects a duplicate incident work order atomically",
+    "concurrent stale writes yield one success and one revision conflict",
+    "audit history cannot be updated or deleted",
+    "partial job progress resumes from a persisted tool result",
+    "changed evidence causes replan before applying a model tool choice",
+    "simulation reset cancels queued work and preserves old generation records",
+    "three expired deliveries fail visibly instead of remaining stuck",
+    "provider mode mismatch fails explicitly without executing tools",
+    "session storage contains only token hashes",
+    "role and account changes take effect on existing sessions",
+    "expired sessions are rejected",
+    "bad passwords are generic and account throttling is durable",
+    "database-backed command rate limits reject excess requests"
+  ],
+  "generatedAt": "2026-11-08T17:04:06.971Z"
+}

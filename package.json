@@ -1,0 +1,46 @@
+{
+  "name": "leakloop",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --hostname 127.0.0.1",
+    "build": "next build --webpack",
+    "start": "next start --hostname 127.0.0.1",
+    "typecheck": "tsc --noEmit",
+    "test": "node --env-file-if-exists=.env.local --import tsx --test tests/*.test.ts",
+    "db:migrate": "node --env-file-if-exists=.env.local --import tsx scripts/migrate.ts",
+    "db:seed": "node --env-file-if-exists=.env.local --import tsx scripts/seed.ts",
+    "evaluate": "node --env-file-if-exists=.env.local --import tsx scripts/evaluate.ts",
+    "test:integration": "node --env-file-if-exists=.env.local --import tsx tests/integration.ts",
+    "test:api": "node --env-file-if-exists=.env.local --import tsx tests/api.ts",
+    "auth:seed": "node --env-file-if-exists=.env.local --import tsx scripts/seed-users.ts",
+    "worker": "node --env-file-if-exists=.env.local --import tsx scripts/worker.ts",
+    "worker:once": "node --env-file-if-exists=.env.local --import tsx scripts/worker.ts --once",
+    "test:backend": "node --env-file-if-exists=.env.local --import tsx tests/backend.ts",
+    "local": "node --env-file-if-exists=.env.local --import tsx scripts/serve.ts",
+    "maintenance": "node --env-file-if-exists=.env.local --import tsx scripts/maintenance.ts",
+    "setup": "npm run db:migrate && npm run db:seed && npm run auth:seed",
+    "local:macos": "python3 scripts/local-macos.py"
+  },
+  "dependencies": {
+    "lucide-react": "^0.577.0",
+    "next": "^16.2.0",
+    "pg": "^8.16.3",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "three": "^0.187.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.0.0",
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.15.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/three": "^0.187.0",
+    "tailwindcss": "^4.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  },
+  "type": "module"
+}

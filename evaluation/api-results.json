@@ -1,0 +1,25 @@
+{
+  "passed_checks": 17,
+  "commands_verified": 44,
+  "http_requests": 226,
+  "checks": [
+    "unauthenticated read rejected",
+    "demo role switching disabled",
+    "wrong password rejected",
+    "cross-origin mutation rejected",
+    "unknown or forged role field rejected",
+    "malformed JSON rejected",
+    "telemetry query limits validated",
+    "indexed telemetry endpoint responds",
+    "versioned incident endpoint responds",
+    "unassigned technician receives no incident evidence",
+    "manager-only audit access enforced",
+    "logout revokes the server-side session",
+    "normal workflow reaches human-confirmed closure",
+    "decline triggers approved reassignment without a duplicate work order",
+    "reassigned technician completes independently verified closure",
+    "failed repair stays open after durable verification job",
+    "job polling, work ownership, idempotency, and reload persistence verified"
+  ],
+  "generatedAt": "2026-11-08T19:44:49.924Z"
+}
