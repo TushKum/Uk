@@ -1,5 +1,5 @@
 export type Role = 'manager' | 'technician' | 'operator';
-export type Actor = { role: Role; id: string; name: string; campusId?:string };
+export type Actor = { role: Role; id: string; name: string; campusId?:string; sessionId?:string };
 export type Stage = 'Detected' | 'Investigating' | 'Awaiting evidence/approval' | 'Assigned' | 'In progress' | 'Awaiting verification' | 'Ready for closure' | 'Closed';
 export type Scenario = 'A'|'B'|'C'|'D'|'E'|'F';
 export type Reading = { id:string; buildingId:string; at:number; value:number|null; quality:'valid'|'faulty'|'missing' };

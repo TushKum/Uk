@@ -51,6 +51,8 @@ Do not run schema migrations using a browser/anonymous database key. Back up the
 
 ## Remaining boundaries
 
+> Update: invitations, password recovery, session management, OIDC SSO, real device ingestion, evidence attachments, model-usage recording, health/readiness, backups with a tested restore and Docker/CI were added after this report. See `docs/OPERATIONS.md`, `docs/DEPLOYMENT.md` and `docs/API.md`. The paragraph below describes the earlier delivery.
+
 No production deployment, SSO/MFA/password reset, public account administration API, multi-tenant authorization, hardware ingest, arbitrary evidence upload, outbound messaging, or backup/restore automation is included. High-volume load and multiple independently deployed API instances were not load-tested. The queue claim/lease logic is concurrency-tested, but the delivered runtime uses one API and one worker. Real model credentials were not provided, so live model behavior/cost remains unmeasured. The 24-fixture evaluation remains explicitly synthetic.
 
 ## Final verification summary

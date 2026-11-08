@@ -21,7 +21,7 @@ def run(args, **kwargs):
 # runtime's account file or database with an older workspace snapshot.
 if source != runtime:
     for parent, dirs, names in os.walk(source):
-        dirs[:] = [d for d in dirs if d not in {'node_modules', '.next', '.postgres', '.git', '__pycache__'}]
+        dirs[:] = [d for d in dirs if d not in {'node_modules', '.next', '.postgres', '.git', '__pycache__', '.data', '.docker', 'backups'}]
         for name in names:
             if name.endswith(('.log', '.tsbuildinfo')):
                 continue

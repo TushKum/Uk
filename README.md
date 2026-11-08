@@ -22,7 +22,16 @@ Sign in with a real local password account. **Demo identity switching is disable
 
 The account initializer creates Ava (manager), Ravi/Maya (technicians), and an operator with independent random passwords. Read `.local-accounts.json` in this source directory or the runtime directory to obtain the credentials. It is ignored by Git, owner-readable only, outside `public/`, and never served by the application. Passwords are not printed by setup. The manager email is `ava@evergreen.local`.
 
-To change roles during a demonstration, sign out and sign in with the relevant account. An unassigned technician sees an empty assignment screen, not another technician's operational evidence. These local accounts are not production SSO; MFA, account invitations, self-service password recovery and email verification are not implemented.
+To change roles during a demonstration, sign out and sign in with the relevant account. An unassigned technician sees an empty assignment screen, not another technician's operational evidence.
+
+### Account lifecycle
+
+- **Invitations** (Administration → People & access): a manager sets name, email and role (technicians can be linked to a roster entry so they can receive work). The one-time link is shown once and expires after 72 hours; the invited person chooses their own password. Roles are always assigned by a manager and enforced server-side.
+- **Password recovery**: “Forgot password?” sends a single-use, 30-minute link through the configured mail transport. The default `file` transport writes messages to an owner-only local outbox (`.data/outbox`); nothing leaves the machine unless `MAIL_TRANSPORT=smtp` is configured. Managers can also issue a one-time reset link. Completing a reset signs out every session.
+- **Sessions** (Account): list and revoke your sessions or sign out everywhere else; changing your password signs out other sessions. Sessions expire after 12 hours or 2 hours idle. Managers can disable people or change roles (never their own; the last manager is protected), which revokes that person's sessions.
+- **SSO**: optional OpenID Connect (authorization code + PKCE, state, nonce, signature/issuer/audience checks). An identity signs in only if it matches an existing account (by issuer+subject, or a verified email), or an open invitation. Identity-provider role or group claims are ignored.
+- **First real manager**: `npm run auth:bootstrap -- --email … --name …` prints a one-time set-password link.
+- An append-only security log (Administration → Security log) records sign-ins, failures, invitations, resets, session revocations, role changes and device key changes. MFA and email-address verification are not implemented.
 
 ## Set up from source
 
@@ -59,7 +68,13 @@ For Supabase, use the server-only direct or session-pooler Postgres URL, with yo
 - Technicians can mutate only their assignments, and their incident/evidence/run responses are filtered to those assignments. Campus telemetry remains readable by campus staff. Audit access is manager-only.
 - Audit and assignment-history rows are append-only through database triggers. A database administrator can still administer the database; this is not a claim of cryptographic tamper resistance.
 
-See `docs/API.md` for the endpoint contract and `docs/BACKEND.md` for persistence, worker recovery and migration details.
+See `docs/API.md` for the endpoint contract and `docs/BACKEND.md` for persistence, worker recovery and migration details. Operations (health, logs, backups, tested restore, retention, shutdown) are in `docs/OPERATIONS.md`; Docker, CI, migrations and hosting preparation are in `docs/DEPLOYMENT.md`.
+
+## Real telemetry, evidence attachments and model usage
+
+- **Real telemetry** (Administration → Telemetry devices): managers register a device for a building and receive a one-time bearer key (stored only as a hash; rotate or revoke at any time). Devices `POST /api/v1/ingest/readings` in batches. Timestamps, values and quality are validated per item; identical resubmissions are idempotent, conflicting values never overwrite stored readings, and implausible values are kept as `faulty`. Readings are queryable with keyset pagination or 15-minute/hourly/daily aggregates over valid readings only. **Real readings are labelled `device`, stored separately and never mixed into the simulated scenario**, which still drives incidents, charts and verification.
+- **Evidence attachments** (Incident workspace and technician view): photos (JPEG/PNG/WebP), PDFs and plain-text documents, up to 10 MB and 50 per incident, identified by content not extension. Managers and the assigned technician (while work is active) can upload; unassigned technicians and operators cannot see them. Storage is a private local directory or any S3-compatible bucket. Each record keeps immutable provenance (uploader, role, server and simulated time, incident state, SHA-256); downloads are integrity-checked. Deletion is a recorded soft delete. Attachments are not analysed by the agent and never change verification results.
+- **Model usage** (Administration → Model usage): every live-model request is recorded with tokens, latency, provider request ID, outcome and cost (when prices are configured).
 
 ## Durable agent jobs
 
@@ -71,9 +86,9 @@ The browser polls job status, shows queued/running states, and restores the work
 
 ## Model modes
 
-`AGENT_MODE=demo` is an explicitly labelled deterministic policy, with no API credentials or calls. For the live adapter set `AGENT_MODE=live`, `OPENAI_API_KEY` and `OPENAI_MODEL` in the API and worker environments, then restart both. Credentials remain server-side. Mode changes never silently fall back to demo. Costs remain unavailable unless rates are configured.
+`AGENT_MODE=demo` is an explicitly labelled deterministic policy, with no API credentials or calls. For the live adapter set `AGENT_MODE=live`, `OPENAI_API_KEY` and `OPENAI_MODEL` in the API and worker environments, then restart both. Credentials remain server-side. Configuration is validated at startup and by `/api/health/ready`; with live mode selected but unconfigured, investigations are refused (503) instead of queued. Mode changes never silently fall back to demo. Requests time out after `AGENT_MODEL_TIMEOUT_MS` (default 8 s); timeouts, 429 and 5xx are retried by requeueing, while authentication errors, refusals, incomplete responses, multiple tool calls and disallowed tools fail the job visibly. Costs remain unavailable (not zero) unless both rates are configured. The model can only gather evidence and propose; creating a work order requires a current manager-approved proposal, and closure is a manager-only command.
 
-The OpenAI Responses adapter follows the [official function-calling documentation](https://developers.openai.com/api/docs/guides/function-calling). A real credentialed model call was not tested in this delivery. The measured evaluation uses the deterministic policy.
+The OpenAI Responses adapter follows the [official function-calling documentation](https://developers.openai.com/api/docs/guides/function-calling). `npm run test:live-agent` verifies request construction, parsing, usage recording, timeouts and failure handling against a **local mock** endpoint. A real credentialed model call was not made in this delivery; `npm run agent:check -- --yes` performs one when you configure credentials. The measured evaluation uses the deterministic policy.
 
 ## Product workflow
 
@@ -102,7 +117,15 @@ npm run test:backend       # pause the continuous worker first; restores the cam
 npm run test:api           # API + worker running; uses local accounts and restores the campus
 npm run evaluate           # 24 synthetic fixtures, including 6 held-out variants
 npm run build
+npm run test:accounts      # invitations, recovery, sessions, admin, SSO (local mock IdP), SMTP (local sink)
+npm run test:telemetry     # device keys, ingestion validation, duplicates, pagination, separation
+npm run test:attachments   # validation, access control, provenance, integrity, local + fake-S3 storage
+npm run test:live-agent    # live adapter against a local mock Responses API
+npm run test:restore       # backup → restore drill into a scratch database
+npm run test:http          # API + worker running; production endpoints over HTTP
 ```
+
+Each suite writes a machine-readable report to `evaluation/*-results.json`. CI (`.github/workflows/ci.yml`) runs all of them.
 
 Current backend validation is in `docs/BACKEND.md`; detailed machine-readable results are in `evaluation/backend-results.json` and `evaluation/api-results.json`. The earlier UI/evaluation report remains in `docs/VALIDATION.md`, and the reproducible evaluation protocol in `docs/EVALUATION.md`. See `docs/DEMO.md` for the failed-repair demo.
 
@@ -116,6 +139,6 @@ Recovery on November 9 found that the previous `/private/tmp` runtime and databa
 
 ## Limits
 
-This is a tested local backend foundation, not a completed production deployment. It has one campus, seeded local accounts and simulated telemetry. It does not include hardware ingestion, real recipients, uploads/document parsing, SSO/MFA/password recovery, a public user administration API, or an externally managed job broker. The aggregate domain service serializes campus mutations; a high-volume telemetry deployment would need narrower transactions, ingestion/retention policies and load testing. Historical scenario generations and command receipts are retained; no operational-history cleanup policy is automatically applied.
+This is a tested local foundation with production-oriented features, not a completed production deployment. It has one campus and simulated scenario telemetry. Real device ingestion, invitations, recovery, SSO, attachments, a live model adapter, backups and Docker/CI are implemented, but SSO, SMTP, S3 and the live model were verified only against local stand-ins (see `docs/OPERATIONS.md` → Known limitations). It does not include MFA, document parsing, hardware integration, real message recipients, or an externally managed job broker. The aggregate domain service serializes campus mutations; a high-volume telemetry deployment would need narrower transactions, ingestion/retention policies and load testing. Historical scenario generations and command receipts are retained; no operational-history cleanup policy is automatically applied.
 
-No live-model quality/latency/cost, hosted Supabase integration, TLS proxy configuration, multi-instance load, backup restoration or production SSO was tested. No field performance or avoided-water-loss claim is made.
+No live-model quality/latency/cost, hosted Supabase integration, TLS proxy configuration, multi-instance load, real identity provider, real mail provider or real object store was tested. Backup restoration was tested into a scratch database on the same server. No field performance or avoided-water-loss claim is made.

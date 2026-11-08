@@ -1,5 +1,5 @@
 import { id, executeTool, tools } from './engine';
-import { configuredProvider, type Provider } from './provider';
+import { configuredProvider, priceUsd, type Provider } from './provider';
 import type { State,Incident,AgentRun } from './types';
 export async function runAgent(s:State,i:Incident,provider:Provider=configuredProvider()){
  const start=performance.now();const run:AgentRun={id:id('RUN'),incidentId:i.id,mode:provider.mode,startedAt:s.now,status:'bounded',steps:0,latencyMs:0,modelMs:0,inputTokens:0,outputTokens:0,costUsd:null};s.runs.push(run);
@@ -20,6 +20,6 @@ export async function runAgent(s:State,i:Incident,provider:Provider=configuredPr
  }
  run.latencyMs=performance.now()-start;
  if(provider.mode==='demo')run.costUsd=0;
- else if(process.env.MODEL_INPUT_USD_PER_MILLION&&process.env.MODEL_OUTPUT_USD_PER_MILLION)run.costUsd=(run.inputTokens*Number(process.env.MODEL_INPUT_USD_PER_MILLION)+run.outputTokens*Number(process.env.MODEL_OUTPUT_USD_PER_MILLION))/1e6;
+ else run.costUsd=priceUsd(run.inputTokens,run.outputTokens);
  return run;
 }

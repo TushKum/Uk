@@ -1,0 +1,70 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: leakloop
+          POSTGRES_PASSWORD: ci-only-not-secret
+          POSTGRES_DB: leakloop
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U leakloop" --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      DATABASE_URL: postgresql://leakloop:ci-only-not-secret@127.0.0.1:5432/leakloop
+      AGENT_MODE: demo
+      APP_ORIGIN: http://127.0.0.1:3001
+      MAIL_TRANSPORT: file
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 22, cache: npm}
+      - run: sudo apt-get update && sudo apt-get install -y postgresql-client-16 || sudo apt-get install -y postgresql-client
+      - run: npm ci
+      - run: npm audit --omit=dev --audit-level=high
+      - run: npm run typecheck
+      - run: npm test
+      - name: Migrate, seed and create local accounts
+        run: npm run setup
+      - name: Migrations are idempotent
+        run: npm run db:migrate
+      - name: Database integration suites (no worker running)
+        run: |
+          npm run test:backend
+          npm run test:accounts
+          npm run test:telemetry
+          npm run test:attachments
+          npm run test:live-agent
+          npm run test:restore
+      - run: npm run evaluate
+      - run: npm run build
+      - name: HTTP suites against the built app and worker
+        run: |
+          npm run local > app.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://127.0.0.1:3001/api/health/ready && break; sleep 1; done
+          npm run test:api
+          npm run test:http
+      - if: failure()
+        run: tail -n 200 app.log || true
+
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t leakloop:ci .
+      - run: POSTGRES_PASSWORD=ci docker compose config -q

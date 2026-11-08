@@ -4,10 +4,18 @@ import {pool} from './pool';
 import {CAMPUS,loadState,storeState} from './repository';
 import {AppError,requireRole} from './errors';
 import {audit,executeTool,id,incidentOf} from './engine';
-import {configuredProvider,type Provider} from './provider';
+import {configuredProvider,priceUsd,ProviderError,type Provider,type Usage} from './provider';
+import {config} from './config';
+import {logger} from './log';
 import type {Actor,Command,State,AgentRun} from './types';
 export type Job={id:string;campus_id:string;generation:string;incident_id:string;run_id:string;requested_by:string;status:'queued'|'running'|'completed'|'failed'|'cancelled';attempts:number;decisions:number;history:unknown[];lease_token:string;error:string|null};
-export async function enqueueAgent(c:Command,actor:Actor){requireRole(actor.role==='manager','Manager role required');return transaction(async db=>{
+function assertAgentReady(){const c=config();if(c.AGENT_MODE==='live'&&(!c.OPENAI_API_KEY||!c.OPENAI_MODEL))throw new AppError(503,'AGENT_NOT_CONFIGURED','Live agent mode is selected but not configured on the server. No demo fallback is used.');}
+async function recordUsage(job:Job,usage:Usage,status:'success'|'error',errorClass:string|null,tool:string|null){
+ const c=config();try{await pool.query('INSERT INTO ll_model_usage(id,campus_id,job_id,run_id,provider,model,provider_request_id,status,error_class,input_tokens,output_tokens,latency_ms,cost_usd,input_usd_per_million,output_usd_per_million,tool) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)',[randomUUID(),job.campus_id,job.id,job.run_id,usage.provider,usage.model,usage.requestId,status,errorClass,usage.inputTokens,usage.outputTokens,usage.latencyMs,priceUsd(usage.inputTokens,usage.outputTokens),c.MODEL_INPUT_USD_PER_MILLION,c.MODEL_OUTPUT_USD_PER_MILLION,tool]);}
+ catch(e){logger.error('model_usage_record_failed',{jobId:job.id,error:(e as Error).message});}
+}
+export async function usageSummary(days=30){const {rows:[total]}=await pool.query("SELECT count(*)::int requests,count(*) FILTER (WHERE status='error')::int errors,coalesce(sum(input_tokens),0)::int input_tokens,coalesce(sum(output_tokens),0)::int output_tokens,sum(cost_usd)::float cost_usd,count(*) FILTER (WHERE cost_usd IS NULL)::int unpriced,avg(latency_ms)::float mean_latency_ms,percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_ms)::float p95_latency_ms FROM ll_model_usage WHERE campus_id=$1 AND created_at>now()-make_interval(days=>$2)",[CAMPUS,days]);const {rows:recent}=await pool.query('SELECT id,job_id AS "jobId",model,provider_request_id AS "providerRequestId",status,error_class AS "errorClass",input_tokens AS "inputTokens",output_tokens AS "outputTokens",latency_ms AS "latencyMs",cost_usd::float AS "costUsd",tool,created_at AS "createdAt" FROM ll_model_usage WHERE campus_id=$1 ORDER BY created_at DESC LIMIT 50',[CAMPUS]);return {days,total,recent};}
+export async function enqueueAgent(c:Command,actor:Actor){requireRole(actor.role==='manager','Manager role required');assertAgentReady();return transaction(async db=>{
  const s=await loadState(db,true);const {rows:[receipt]}=await db.query('SELECT * FROM ll_command_receipts WHERE command_id=$1',[c.commandId]);
  if(receipt){if(receipt.actor_id!==actor.id||receipt.campus_id!==CAMPUS||receipt.request_hash!==commandHash(c))throw new AppError(409,'IDEMPOTENCY_CONFLICT','Command key was already used for a different request');const {rows:[job]}=await db.query('SELECT * FROM ll_jobs WHERE id=$1',[receipt.job_id]);return {state:s,job:publicJob(job)};}
  if(c.revision!==s.revision)throw new AppError(409,'REVISION_CONFLICT','State changed in another view. Refresh and retry.');
@@ -35,8 +43,8 @@ async function checkpoint<T>(job:Job,change:(s:State,j:Job)=>Promise<T>):Promise
  const value=await change(s,live);s.revision++;await storeState(db,s);
  await db.query(`UPDATE ll_jobs SET status=$2,decisions=$3,history=$4,error=$5,lease_until=CASE WHEN $2='running' THEN now()+interval '60 seconds' ELSE NULL END,available_at=CASE WHEN $2='queued' THEN now()+interval '3 seconds' ELSE available_at END,updated_at=now() WHERE id=$1`,[live.id,live.status,live.decisions,JSON.stringify(live.history),live.error]);return {applied:true,value};
 });}
-function price(run:AgentRun){if(run.mode==='demo')run.costUsd=0;else if(process.env.MODEL_INPUT_USD_PER_MILLION&&process.env.MODEL_OUTPUT_USD_PER_MILLION)run.costUsd=(run.inputTokens*Number(process.env.MODEL_INPUT_USD_PER_MILLION)+run.outputTokens*Number(process.env.MODEL_OUTPUT_USD_PER_MILLION))/1e6;}
-export async function executeJob(job:Job,provider:Provider=configuredProvider()){
+function price(run:AgentRun){run.costUsd=run.mode==='demo'?0:priceUsd(run.inputTokens,run.outputTokens);}
+export async function executeJob(job:Job,provider:Provider=configuredProvider(),signal?:AbortSignal){
  const started=performance.now();let mark=started;
  const finish=async(status:AgentRun['status'],error?:string)=>checkpoint(job,async(s,j)=>{const run=s.runs.find(r=>r.id===job.run_id)!;run.status=status;run.error=error;run.latencyMs+=performance.now()-mark;price(run);j.status=status==='queued'?'queued':status==='failed'?'failed':'completed';j.error=error??null;audit(s,'Agent worker',`Investigation ${j.id}: ${status}${error?` · ${error}`:''}`);});
  try{
@@ -45,7 +53,7 @@ export async function executeJob(job:Job,provider:Provider=configuredProvider())
    const snap=await transaction(db=>loadState(db),true);if(snap.generation!==job.generation)return;
    const {rows:[live]}=await pool.query('SELECT * FROM ll_jobs WHERE id=$1',[job.id]);if(live.status!=='running'||live.lease_token!==job.lease_token)return;
    if(live.decisions>=8||performance.now()-started>30000){await finish('bounded','Bounded run limit reached. Start another investigation if more work is needed.');return;}
-   const i=incidentOf(snap,job.incident_id);if(snap.runs.find(r=>r.id===job.run_id)?.mode!==provider.mode)throw new Error('Provider mode changed. Start a new investigation.');const choice=await provider.choose(snap,i,live.history);
+   const i=incidentOf(snap,job.incident_id);if(snap.runs.find(r=>r.id===job.run_id)?.mode!==provider.mode)throw new Error('Provider mode changed. Start a new investigation.');let choice;try{choice=await provider.choose(snap,i,live.history,signal);}catch(e){if(e instanceof ProviderError&&e.usage)await recordUsage(job,e.usage,'error',e.errorClass,null);throw e;}if(choice.usage)await recordUsage(job,choice.usage,'success',null,choice.tool);
    if(!choice.tool){await checkpoint(job,async(s,j)=>{const r=s.runs.find(r=>r.id===j.run_id)!;r.modelMs+=choice.modelMs;r.inputTokens+=choice.inputTokens;r.outputTokens+=choice.outputTokens;});await finish('completed');return;}
    let replan=false;
    for(let attempt=0;attempt<2;attempt++){
@@ -62,6 +70,11 @@ export async function executeJob(job:Job,provider:Provider=configuredProvider())
    }
    if(replan)continue;
   }
- }catch(e){const message=e instanceof Error?e.message:'Agent execution failed';const transient=/fetch failed|timeout|aborted|HTTP (429|5\d\d)/i.test(message);await finish(transient&&job.attempts<3?'queued':'failed',message);}
+ }catch(e){const message=e instanceof Error?e.message:'Agent execution failed';const transient=e instanceof ProviderError?e.transient:/fetch failed|timeout|aborted|HTTP (429|5\d\d)/i.test(message);
+  logger.warn('agent_job_error',{jobId:job.id,attempt:job.attempts,transient,errorClass:e instanceof ProviderError?e.errorClass:'internal',message});
+  const shutdown=e instanceof ProviderError&&e.errorClass==='aborted';
+  await finish(transient&&(shutdown||job.attempts<3)?'queued':'failed',message);
+  // A graceful shutdown should not consume one of the job's three delivery attempts.
+  if(shutdown)await pool.query("UPDATE ll_jobs SET attempts=greatest(attempts-1,0),available_at=now() WHERE id=$1 AND status='queued'",[job.id]);}
 }
-export async function workOnce(provider?:Provider){const job=await claimJob();if(!job)return false;await executeJob(job,provider);return true;}
+export async function workOnce(provider?:Provider,signal?:AbortSignal){const job=await claimJob();if(!job)return false;await executeJob(job,provider,signal);return true;}

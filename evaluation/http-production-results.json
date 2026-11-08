@@ -1,0 +1,22 @@
+{
+  "passed_checks": 15,
+  "checks": [
+    "health endpoints separate liveness from readiness",
+    "security headers are set on pages and APIs",
+    "public auth config exposes no secrets",
+    "password recovery responds identically for known and unknown emails",
+    "account mutations require same origin",
+    "administration endpoints are manager-only",
+    "invitation → acceptance over HTTP sets a hardened session cookie with the invited role",
+    "users list and revoke their own sessions; revoking another user’s session is 404",
+    "device registration returns a one-time key; ingestion uses bearer keys, not cookies",
+    "telemetry queries label real and simulated data and never mix them",
+    "managers upload evidence over multipart; downloads are private, typed and non-sniffable",
+    "unassigned technicians and operators cannot list, read or upload evidence",
+    "uploads reject cross-origin, oversized, mismatched and non-multipart requests",
+    "deletion requires a reason and is reflected in the campus audit log",
+    "model usage summary reports demo mode honestly"
+  ],
+  "generatedAt": "2026-11-08T22:02:21.708Z",
+  "target": "http://127.0.0.1:3001"
+}

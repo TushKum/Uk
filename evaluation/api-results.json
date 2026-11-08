@@ -1,7 +1,7 @@
 {
   "passed_checks": 17,
   "commands_verified": 44,
-  "http_requests": 226,
+  "http_requests": 209,
   "checks": [
     "unauthenticated read rejected",
     "demo role switching disabled",
@@ -21,5 +21,5 @@
     "failed repair stays open after durable verification job",
     "job polling, work ownership, idempotency, and reload persistence verified"
   ],
-  "generatedAt": "2026-11-08T19:44:49.924Z"
+  "generatedAt": "2026-11-08T22:02:20.256Z"
 }

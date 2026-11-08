@@ -1,0 +1,71 @@
+# Local Docker setup: Postgres + one-shot setup + API/UI + worker.
+#   cp .env.docker.example .env      # then set POSTGRES_PASSWORD
+#   docker compose up --build
+# Open http://127.0.0.1:3001. Ports are published on loopback only.
+# Local account passwords: docker compose exec app cat /data/accounts/.local-accounts.json
+name: leakloop
+x-app: &app
+  build: {context: ., args: {NODE_IMAGE: "${NODE_IMAGE:-node:22-alpine}"}}
+  image: leakloop:local
+  env_file: [{path: .env, required: false}]
+  environment: &env
+    DATABASE_URL: postgresql://leakloop:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/leakloop
+    APP_ORIGIN: ${APP_ORIGIN:-http://127.0.0.1:3001}
+    AGENT_MODE: ${AGENT_MODE:-demo}
+  volumes:
+    - appdata:/data
+  init: true
+  restart: unless-stopped
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: leakloop
+      POSTGRES_DB: leakloop
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck: {test: ["CMD-SHELL", "pg_isready -U leakloop -d leakloop"], interval: 5s, timeout: 3s, retries: 20}
+    restart: unless-stopped
+
+  # Applies migrations, seeds the fictional campus (only if empty) and creates local accounts (only if missing).
+  setup:
+    <<: *app
+    command: ["npm", "run", "setup"]
+    restart: "no"
+    depends_on: {db: {condition: service_healthy}}
+
+  app:
+    <<: *app
+    ports: ["127.0.0.1:3001:3001"]
+    stop_grace_period: 30s
+    depends_on: {setup: {condition: service_completed_successfully}}
+    healthcheck: {test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3001/api/health/ready >/dev/null"], interval: 15s, timeout: 5s, start_period: 30s, retries: 4}
+
+  worker:
+    <<: *app
+    command: ["node", "--import", "tsx", "scripts/worker.ts"]
+    environment: {<<: *env, LEAKLOOP_SERVICE: leakloop-worker}
+    stop_grace_period: 30s
+    healthcheck: {disable: true}
+    depends_on: {setup: {condition: service_completed_successfully}}
+
+  # On demand: docker compose run --rm maintenance
+  maintenance:
+    <<: *app
+    command: ["npm", "run", "maintenance"]
+    restart: "no"
+    profiles: [ops]
+    depends_on: {db: {condition: service_healthy}}
+
+  # On demand: docker compose run --rm backup, then: docker compose cp app:/data/backups ./backups
+  backup:
+    <<: *app
+    command: ["npm", "run", "db:backup", "--", "--out", "/data/backups"]
+    restart: "no"
+    profiles: [ops]
+    depends_on: {db: {condition: service_healthy}}
+
+volumes:
+  pgdata:
+  appdata:
