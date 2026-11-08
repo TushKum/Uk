@@ -25,5 +25,5 @@
     "bad passwords are generic and account throttling is durable",
     "database-backed command rate limits reject excess requests"
   ],
-  "generatedAt": "2026-11-08T17:04:06.971Z"
+  "generatedAt": "2026-11-08T22:01:13.400Z"
 }

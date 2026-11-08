@@ -20,3 +20,14 @@ export const commandSchema=z.object({
  if(c.action==='complete')need(c.checklist?.length===3&&new Set(c.checklist).size===3,'checklist','All three inspection checks are required');
 });
 export const telemetryQuery=z.object({buildingId:z.string().min(1).max(100),from:z.coerce.number().int().nonnegative().default(0),to:z.coerce.number().int().nonnegative().default(Number.MAX_SAFE_INTEGER),limit:z.coerce.number().int().min(1).max(500).default(100)}).strict().refine(v=>v.to>=v.from,{message:'Invalid time window'});
+const email=z.string().trim().toLowerCase().email().max(254);
+const secretToken=z.string().regex(/^[a-f0-9]{64}$/,'Invalid token');
+const newPassword=z.string().min(1).max(256);
+export const role=z.enum(['manager','technician','operator']);
+export const invitationSchema=z.object({email,name:z.string().trim().min(1).max(120),role,technicianId:z.string().trim().min(1).max(100).regex(/^[a-z0-9-]+$/).optional(),send:z.boolean().optional()}).strict();
+export const tokenSchema=z.object({token:secretToken}).strict();
+export const tokenPasswordSchema=z.object({token:secretToken,password:newPassword}).strict();
+export const emailSchema=z.object({email}).strict();
+export const changePasswordSchema=z.object({currentPassword:z.string().min(1).max(256),newPassword}).strict();
+export const userUpdateSchema=z.object({role:role.optional(),active:z.boolean().optional()}).strict().refine(v=>v.role!==undefined||v.active!==undefined,{message:'Provide role or active'});
+export const uuid=z.string().uuid();

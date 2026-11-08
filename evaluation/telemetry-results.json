@@ -1,0 +1,21 @@
+{
+  "passed_checks": 14,
+  "checks": [
+    "only managers register devices, for buildings on this campus",
+    "device authentication rejects missing, malformed and unknown keys",
+    "valid readings are accepted with device-time timestamps",
+    "identical resubmissions are idempotent duplicates",
+    "conflicting values never overwrite recorded readings",
+    "timestamp, value and field validation rejects bad items individually",
+    "implausible values are stored as faulty, never as valid flow",
+    "repeated timestamps inside one batch are classified, not double-inserted",
+    "oversized batches are rejected before writing",
+    "accepted readings are immutable in the database",
+    "keyset pagination returns every reading exactly once, newest first",
+    "time-bucketed aggregates exclude missing and faulty readings",
+    "simulated scenario readings are untouched and storing scenario state never deletes device readings",
+    "key rotation invalidates the old key; revocation blocks ingestion"
+  ],
+  "generatedAt": "2026-11-08T22:01:33.209Z",
+  "data": "synthetic readings from a test device; no hardware involved"
+}

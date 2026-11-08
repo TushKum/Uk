@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.env*
+!.env.example
+!.env.docker.example
+.local-accounts.json
+.data
+.docker
+.postgres
+backups
+*.log
+*.dump
+*.tsbuildinfo

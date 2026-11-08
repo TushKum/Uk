@@ -1,0 +1,1 @@
+export default function NotFound(){return <div className="initial"><span className="sim-badge">LEAKLOOP</span><h1>Not found.</h1><p>This page does not exist.</p><a className="primary" href="/">Back to workspace</a></div>;}

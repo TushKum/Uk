@@ -13,3 +13,30 @@
 .login-brand .sim-badge{display:inline-flex}
 
 .initial>.sim-badge{display:inline-flex}
+/* Account, administration, devices and attachments */
+.stack-form{display:flex;flex-direction:column;gap:12px;padding:0 13px 16px}
+.stack-form input,.stack-form select{width:100%;padding:10px;margin-top:6px;font:12px monospace;color:#f0f0dc;border:1px solid #667f49;background:#131e0d}
+.padded{padding-bottom:12px}
+.tab-row{display:flex;gap:0;margin:0 0 16px;border-bottom:1px solid #505d40;flex-wrap:wrap}
+.tab-row button{background:transparent;border:1px solid transparent;border-bottom:none;color:#abbc99;font:10px monospace;text-transform:uppercase;padding:10px 14px;cursor:pointer}
+.tab-row button.active{color:#c8ff62;border-color:#505d40;background:#171c14}
+.one-time-link{word-break:break-all;user-select:all;font-size:11px;margin:6px 0}
+.sso-button{display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;margin-bottom:14px}
+.standalone-account{padding:24px clamp(16px,4vw,48px);max-width:1200px;margin:0 auto}
+.source-badge{display:inline-flex;align-items:center;gap:6px;font:8px monospace;text-transform:uppercase;letter-spacing:.3px;padding:3px 6px;border:1px solid}
+.source-badge.real{color:#10120f;background:#80e2dc;border-color:#80e2dc}
+.source-badge.simulated{color:#ffa462;border-color:#ffa462}
+.attachment-list{display:flex;flex-direction:column;gap:8px;padding:0 13px 13px}
+.attachment-item{display:grid;grid-template-columns:1fr auto;gap:8px;border:1px solid #3d4733;padding:9px;font:11px monospace}
+.attachment-item small{display:block;color:#abbc99;margin-top:3px;word-break:break-all}
+.upload-form{display:flex;flex-wrap:wrap;gap:8px;align-items:end;padding:0 13px 13px}
+.upload-form input[type=file]{font:11px monospace;max-width:100%}
+.upload-form input[type=text]{flex:1;min-width:160px;padding:8px;font:11px monospace}
+.key-reveal{border:1px dashed #c8ff62;padding:10px;margin:0 13px 13px;font:11px monospace;word-break:break-all}
+@media (max-width:700px){.tab-row button{flex:1 1 45%}.attachment-item{grid-template-columns:1fr}}
+.split-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;margin-bottom:20px;align-items:start}
+.split-grid .table-wrap,.panel .table-wrap{overflow-x:auto}
+.stack-form .checkbox-field{display:flex;flex-direction:row;align-items:center;gap:10px}
+.stack-form .checkbox-field input{width:auto;margin:0}
+.cell-actions{gap:12px;flex-wrap:wrap}
+@media (max-width:1000px){.split-grid{grid-template-columns:1fr}}

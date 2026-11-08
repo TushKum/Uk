@@ -1,0 +1,23 @@
+{
+  "passed_checks": 16,
+  "checks": [
+    "password policy rejects short, repetitive and email-derived passwords",
+    "configuration validation reports unsafe or incomplete settings",
+    "only managers can invite; roles come from the invitation",
+    "duplicate open invitations and existing-account invitations are rejected",
+    "invitation acceptance enforces password policy and is single use",
+    "expired and revoked invitations cannot be used",
+    "password recovery is generic, single use, and revokes existing sessions",
+    "expired reset links fail and non-managers cannot issue links",
+    "password change requires the current password and signs out other sessions",
+    "users can list and revoke only their own sessions; managers can revoke any",
+    "idle sessions expire even before their absolute expiry",
+    "user administration blocks self-changes, protects the last manager and revokes sessions",
+    "SSO links a pre-provisioned account by verified email and ignores IdP role claims",
+    "SSO rejects state mismatch, replayed state, wrong nonce, foreign signatures and unverified emails",
+    "SSO can accept an open invitation and creates a password-less account",
+    "SMTP transport delivers through a configured server"
+  ],
+  "generatedAt": "2026-11-08T22:01:15.534Z",
+  "external_services": "none (local mock OIDC provider and SMTP sink)"
+}

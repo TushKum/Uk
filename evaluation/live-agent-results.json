@@ -1,0 +1,20 @@
+{
+  "passed_checks": 13,
+  "checks": [
+    "live requests carry server-side credentials, the tool allowlist and no account data",
+    "a model following policy can propose dispatch but cannot approve it",
+    "every model request is recorded with tokens, latency, request id and cost",
+    "a model calling create_work_order without approval fails visibly and dispatches nothing",
+    "timeouts are transient: the job is requeued, the error recorded, and no demo result substituted",
+    "authentication failures fail the job without retry",
+    "rate limiting is retried by requeueing",
+    "disallowed model output fails explicitly with no tools executed",
+    "multiple model output fails explicitly with no tools executed",
+    "refusal model output fails explicitly with no tools executed",
+    "incomplete model output fails explicitly with no tools executed",
+    "graceful shutdown aborts the model call and requeues without consuming an attempt",
+    "live mode without credentials is rejected at enqueue, before any job is created"
+  ],
+  "generatedAt": "2026-11-08T22:01:20.219Z",
+  "provider": "local mock Responses API — no real model was called; quality, latency and cost of a real model remain unmeasured"
+}

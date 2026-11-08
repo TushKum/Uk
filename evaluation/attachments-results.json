@@ -1,0 +1,18 @@
+{
+  "passed_checks": 11,
+  "checks": [
+    "managers attach photos; bytes are stored privately with a matching SHA-256",
+    "the upload is recorded in the campus audit log",
+    "assigned technicians can attach and read; others cannot see the incident",
+    "only the uploader or a manager can delete; deletion is soft and audited",
+    "provenance is immutable and records cannot be hard-deleted or restored",
+    "tampered stored bytes fail the integrity check and are not served",
+    "invalid files are rejected before anything is stored",
+    "per-incident limits are enforced and the rejected upload leaves no orphaned file",
+    "closed incidents and completed work orders do not accept new evidence",
+    "attachments from earlier scenario generations stay readable by managers only",
+    "S3-compatible storage driver stores, reads and deletes signed objects"
+  ],
+  "generatedAt": "2026-11-08T22:01:17.234Z",
+  "storage": "temporary local directory and local fake S3 endpoint; no cloud object store contacted"
+}
